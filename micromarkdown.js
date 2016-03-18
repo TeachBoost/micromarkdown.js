@@ -38,85 +38,123 @@
   };
   var codeblocks = {};
 
-  function parse (str, strict) {
+  function extend () {
+    for (var i=1; i<arguments.length; i++) {
+      for (var key in arguments[i]) {
+        if (arguments[i].hasOwnProperty(key)) {
+          arguments[0][key] = arguments[i][key];
+        }
+      }
+    }
+    return arguments[0];
+  }
+
+  function convertParagraphs (str, tag) {
+    var regexP = new RegExp('<\/'+tag+'>', 'gm');
+    str = str.trim()
+    str = str.replace(/(\r\n|\n|\r)/gm,'\r\n\r\n');
+    str = str.replace(/(\r\n|\r|\n){2,}/g, '$1\n');
+    str = str.replace(/(\n\n)/gm, '</'+tag+'><'+tag+'>');
+    str = str.replace(/(\r\n|\n|\r)/gm,'');
+    str = str.replace(regexP, '</'+tag+'>\n\n');
+    str = '<'+tag+'>' + str + '</'+tag+'>'; 
+    return str;
+  }
+
+  function parse (str, options) {
     var line, nstatus = 0,
       status, cel, calign, indent, helper, helper1, helper2, count, repstr, stra, trashgc = [],
       casca = 0,
       i = 0,
       j = 0,
-      crc32str = '';
+      crc32str = '',
+      defaults = {
+        code: true,
+        lists: true,
+        strict: true,
+        headlines: true,
+        paragraphTag: 'p',
+        paragraphs: false
+      },
+      options = extend(defaults, options || {});
     str = '\n' + str + '\n';
-
-    if (strict !== true) {
+console.log( options.paragraphTag);
+    if (options.strict !== true) {
       regexobject.lists = /^((\s*(\*|\d\.) [^\n]+)\n)+/gm;
     }
 
     str = str.replace('$&', '&#x0024&amp;');
 
     /* code */
-    while ((stra = regexobject.code.exec(str)) !== null) {
-      crc32str = crc32(stra[0]);
-      codeblocks[crc32str] = '<code>\n' + htmlEncode(stra[1]).replace(/\n/gm, '<br/>').replace(/\ /gm, '&nbsp;') + '</code>';
-      str = str.replace(stra[0], ' §§§' + crc32str + '§§§ ');
+    if (options.code) {
+      while ((stra = regexobject.code.exec(str)) !== null) {
+        crc32str = crc32(stra[0]);
+        codeblocks[crc32str] = '<code>\n' + htmlEncode(stra[1]).replace(/\n/gm, '<br/>').replace(/\ /gm, '&nbsp;') + '</code>';
+        str = str.replace(stra[0], ' §§§' + crc32str + '§§§ ');
+      }
     }
 
     /* headlines */
-    while ((stra = regexobject.headline.exec(str)) !== null) {
-      count = stra[1].length;
-      str = str.replace(stra[0], '<h' + count + '>' + stra[2].trim() + '</h' + count + '>').trim();
+    if (options.headlines) {
+      while ((stra = regexobject.headline.exec(str)) !== null) {
+        count = stra[1].length;
+        str = str.replace(stra[0], '<h' + count + '>' + stra[2].trim() + '</h' + count + '>').trim();
+      }
     }
 
     /* lists */
-    while ((stra = regexobject.lists.exec(str)) !== null) {
-      casca = 0;
-      if ((stra[0].trim().substr(0, 1) === '*') || (stra[0].trim().substr(0, 1) === '-')) {
-        repstr = '<ul>';
-      } else {
-        repstr = '<ol>';
-      }
-      helper = stra[0].split('\n');
-      helper1 = [];
-      status = 0;
-      indent = false;
-      for (i = 0; i < helper.length; i++) {
-        if ((line = /^((\s*)((\*|\-)|\d(\.|\))) ([^\n]+))/.exec(helper[i])) !== null) {
-          if ((line[2] === undefined) || (line[2].length === 0)) {
-            nstatus = 0;
-          } else {
-            if (indent === false) {
-              indent = line[2].replace(/\t/, '    ').length;
-            }
-            nstatus = Math.round(line[2].replace(/\t/, '    ').length / indent);
-          }
-          while (status > nstatus) {
-            repstr += helper1.pop();
-            status--;
-            casca--;
-          }
-          while (status < nstatus) {
-            if ((line[0].trim().substr(0, 1) === '*') || (line[0].trim().substr(0, 1) === '-')) {
-              repstr += '<ul>';
-              helper1.push('</ul>');
-            } else {
-              repstr += '<ol>';
-              helper1.push('</ol>');
-            }
-            status++;
-            casca++;
-          }
-          repstr += '<li>' + line[6] + '</li>' + '\n';
+    if (options.lists) {
+      while ((stra = regexobject.lists.exec(str)) !== null) {
+        casca = 0;
+        if ((stra[0].trim().substr(0, 1) === '*') || (stra[0].trim().substr(0, 1) === '-')) {
+          repstr = '<ul>';
+        } else {
+          repstr = '<ol>';
         }
+        helper = stra[0].split('\n');
+        helper1 = [];
+        status = 0;
+        indent = false;
+        for (i = 0; i < helper.length; i++) {
+          if ((line = /^((\s*)((\*|\-)|\d(\.|\))) ([^\n]+))/.exec(helper[i])) !== null) {
+            if ((line[2] === undefined) || (line[2].length === 0)) {
+              nstatus = 0;
+            } else {
+              if (indent === false) {
+                indent = line[2].replace(/\t/, '    ').length;
+              }
+              nstatus = Math.round(line[2].replace(/\t/, '    ').length / indent);
+            }
+            while (status > nstatus) {
+              repstr += helper1.pop();
+              status--;
+              casca--;
+            }
+            while (status < nstatus) {
+              if ((line[0].trim().substr(0, 1) === '*') || (line[0].trim().substr(0, 1) === '-')) {
+                repstr += '<ul>';
+                helper1.push('</ul>');
+              } else {
+                repstr += '<ol>';
+                helper1.push('</ol>');
+              }
+              status++;
+              casca++;
+            }
+            repstr += '<li>' + line[6] + '</li>' + '\n';
+          }
+        }
+        while (casca > 0) {
+          repstr += '</ul>';
+          casca--;
+        }
+        if ((stra[0].trim().substr(0, 1) === '*') || (stra[0].trim().substr(0, 1) === '-')) {
+          repstr += '</ul>';
+        } else {
+          repstr += '</ol>';
+        }
+        str = str.replace(stra[0], repstr + '\n');
       }
-      while (casca > 0) {
-        repstr += '</ul>';
-        casca--;
-      }
-      if ((stra[0].trim().substr(0, 1) === '*') || (stra[0].trim().substr(0, 1) === '-')) {
-        repstr += '</ul>';
-      } else {
-        repstr += '</ol>';
-      }
-      str = str.replace(stra[0], repstr + '\n');
     }
 
     /* bold and italic */
@@ -147,7 +185,7 @@
       if (stra[0].substr(0, 1) === '!') {
         str = str.replace(stra[0], '<img src="' + stra[2] + '" alt="' + stra[1] + '" title="' + stra[1] + '" />');
       } else {
-        str = str.replace(stra[0], '<a ' + mmdCSSclass(stra[2], strict) + 'href="' + stra[2] + '">' + stra[1] + '</a>');
+        str = str.replace(stra[0], '<a ' + mmdCSSclass(stra[2], options.strict) + 'href="' + stra[2] + '">' + stra[1] + '</a>');
       }
     }
     while ((stra = regexobject.mail.exec(str)) !== null) {
@@ -158,12 +196,12 @@
       if (repstr.indexOf('://') === -1) {
         repstr = 'http://' + repstr;
       }
-      str = str.replace(stra[0], '<a ' + mmdCSSclass(repstr, strict) + 'href="' + repstr + '">' + repstr.replace(/(https:\/\/|http:\/\/|mailto:|ftp:\/\/)/gmi, '') + '</a>');
+      str = str.replace(stra[0], '<a ' + mmdCSSclass(repstr, options.strict) + 'href="' + repstr + '">' + repstr.replace(/(https:\/\/|http:\/\/|mailto:|ftp:\/\/)/gmi, '') + '</a>');
     }
     while ((stra = regexobject.reflinks.exec(str)) !== null) {
       helper1 = new RegExp('\\[' + stra[2] + '\\]: ?([^ \n]+)', "gi");
       if ((helper = helper1.exec(str)) !== null) {
-        str = str.replace(stra[0], '<a ' + mmdCSSclass(helper[1], strict) + 'href="' + helper[1] + '">' + stra[1] + '</a>').replace(/^\s+|\s+$/g, '');
+        str = str.replace(stra[0], '<a ' + mmdCSSclass(helper[1], options.strict) + 'href="' + helper[1] + '">' + stra[1] + '</a>').replace(/^\s+|\s+$/g, '');
         trashgc.push(helper[0]);
       }
     }
@@ -172,7 +210,7 @@
     }
     while ((stra = regexobject.url2.exec(str)) !== null) {
       repstr = stra[1];
-      str = str.replace(stra[0], '<a ' + mmdCSSclass(repstr, strict) + 'href="' + repstr + '">' + repstr + '</a>');
+      str = str.replace(stra[0], '<a ' + mmdCSSclass(repstr, options.strict) + 'href="' + repstr + '">' + repstr + '</a>');
     }
 
     /* horizontal line */
@@ -180,8 +218,12 @@
       str = str.replace(stra[0], '\n<hr/>\n');
     }
 
-    str = str.replace(/ {2,}[\n]{1,}/gmi, '<br/>');
-    str = str.replace(/[\n]{2,}/gmi, '<br/><br/>');
+    if (options.paragraphs) {
+      str = convertParagraphs(str, options.paragraphTag);
+    } else {
+      str = str.replace(/ {2,}[\n]{1,}/gmi, '<br/>');
+      str = str.replace(/[\n]{2,}/gmi, '<br/><br/>');
+    }
 
     for(var index in codeblocks) {
       if(codeblocks.hasOwnProperty(index)) {
