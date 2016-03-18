@@ -78,7 +78,7 @@
       },
       options = extend(defaults, options || {});
     str = '\n' + str + '\n';
-console.log( options.paragraphTag);
+
     if (options.strict !== true) {
       regexobject.lists = /^((\s*(\*|\d\.) [^\n]+)\n)+/gm;
     }
