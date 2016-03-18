@@ -20,7 +20,7 @@
   } else if (typeof exports === 'object') {
     module.exports = factory();
   } else {
-    root.returnExports = factory();
+    root.micromarkdown = factory();
   }
 }(this, function () {
   'use strict';
@@ -56,14 +56,14 @@
     /* code */
     while ((stra = regexobject.code.exec(str)) !== null) {
       crc32str = crc32(stra[0]);
-      codeblocks[crc32str] = '<code>\n' + htmlEncode(stra[1]).replace(/\n/gm, '<br/>').replace(/\ /gm, '&nbsp;') + '</code>\n';
+      codeblocks[crc32str] = '<code>\n' + htmlEncode(stra[1]).replace(/\n/gm, '<br/>').replace(/\ /gm, '&nbsp;') + '</code>';
       str = str.replace(stra[0], ' §§§' + crc32str + '§§§ ');
     }
 
     /* headlines */
     while ((stra = regexobject.headline.exec(str)) !== null) {
       count = stra[1].length;
-      str = str.replace(stra[0], '<h' + count + '>' + stra[2] + '</h' + count + '>' + '\n');
+      str = str.replace(stra[0], '<h' + count + '>' + stra[2].trim() + '</h' + count + '>').trim();
     }
 
     /* lists */
@@ -145,9 +145,9 @@
     /* links */
     while ((stra = regexobject.links.exec(str)) !== null) {
       if (stra[0].substr(0, 1) === '!') {
-        str = str.replace(stra[0], '<img src="' + stra[2] + '" alt="' + stra[1] + '" title="' + stra[1] + '" />\n');
+        str = str.replace(stra[0], '<img src="' + stra[2] + '" alt="' + stra[1] + '" title="' + stra[1] + '" />');
       } else {
-        str = str.replace(stra[0], '<a ' + mmdCSSclass(stra[2], strict) + 'href="' + stra[2] + '">' + stra[1] + '</a>\n');
+        str = str.replace(stra[0], '<a ' + mmdCSSclass(stra[2], strict) + 'href="' + stra[2] + '">' + stra[1] + '</a>');
       }
     }
     while ((stra = regexobject.mail.exec(str)) !== null) {
@@ -163,7 +163,7 @@
     while ((stra = regexobject.reflinks.exec(str)) !== null) {
       helper1 = new RegExp('\\[' + stra[2] + '\\]: ?([^ \n]+)', "gi");
       if ((helper = helper1.exec(str)) !== null) {
-        str = str.replace(stra[0], '<a ' + mmdCSSclass(helper[1], strict) + 'href="' + helper[1] + '">' + stra[1] + '</a>');
+        str = str.replace(stra[0], '<a ' + mmdCSSclass(helper[1], strict) + 'href="' + helper[1] + '">' + stra[1] + '</a>').replace(/^\s+|\s+$/g, '');
         trashgc.push(helper[0]);
       }
     }
